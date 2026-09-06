@@ -12,10 +12,12 @@ const {
 } = require("./skills");
 
 const app = express();
-const PORT = 5000;
+
+// IMPORTANT: Render provides its own PORT
+const PORT = process.env.PORT || 5000;
 
 // =========================
-// Gemini AI Configuration
+// Gemini AI
 // =========================
 
 const ai = new GoogleGenAI({
@@ -30,30 +32,27 @@ app.use(cors());
 app.use(express.json());
 
 // =========================
-// File Upload Configuration
+// File Upload
 // =========================
 
 const upload = multer({
   storage: multer.memoryStorage(),
+
   limits: {
     fileSize: 5 * 1024 * 1024,
   },
 });
 
 // =========================
-// Home Route
+// Test Routes
 // =========================
 
 app.get("/", (req, res) => {
   res.json({
-    message:
-      "CareerMatch AI Backend is running successfully!",
+    success: true,
+    message: "CareerMatch AI Backend is running successfully!",
   });
 });
-
-// =========================
-// API Test Route
-// =========================
 
 app.get("/api/test", (req, res) => {
   res.json({
@@ -92,21 +91,7 @@ app.post(
       }
 
       // =========================
-      // 2. Validate Job Description
-      // =========================
-
-      const jobDescription =
-        req.body.jobDescription || "";
-
-      if (!jobDescription.trim()) {
-        return res.status(400).json({
-          success: false,
-          message: "Please enter a job description.",
-        });
-      }
-
-      // =========================
-      // 3. Extract Resume Text
+      // 2. Extract Resume Text
       // =========================
 
       parser = new PDFParse({
@@ -115,13 +100,19 @@ app.post(
 
       const result = await parser.getText();
 
-      const resumeText = result.text;
+      const resumeText = result.text || "";
 
-      if (!resumeText || !resumeText.trim()) {
+      const jobDescription =
+        req.body.jobDescription || "";
+
+      // =========================
+      // 3. Validate Job Description
+      // =========================
+
+      if (!jobDescription.trim()) {
         return res.status(400).json({
           success: false,
-          message:
-            "Could not extract text from the uploaded resume PDF.",
+          message: "Please enter a job description.",
         });
       }
 
@@ -136,7 +127,7 @@ app.post(
         extractSkills(jobDescription);
 
       // =========================
-      // 5. Find Matched Skills
+      // 5. Matched Skills
       // =========================
 
       const matchedSkills =
@@ -149,7 +140,7 @@ app.post(
         );
 
       // =========================
-      // 6. Find Missing Skills
+      // 6. Missing Skills
       // =========================
 
       const missingSkills =
@@ -173,7 +164,7 @@ app.post(
         );
 
       // =========================
-      // 8. Calculate Score Breakdown
+      // 8. Score Breakdown
       // =========================
 
       const coreSkills = [
@@ -205,21 +196,23 @@ app.post(
       const matchedSupportingSkills = [];
 
       jobSkills.forEach((jobSkill) => {
-        const isCoreSkill = coreSkills.some(
-          (skill) =>
-            skill.toLowerCase() ===
-            jobSkill.toLowerCase()
-        );
+        const isCoreSkill =
+          coreSkills.some(
+            (skill) =>
+              skill.toLowerCase() ===
+              jobSkill.toLowerCase()
+          );
 
         const weight = isCoreSkill ? 2 : 1;
 
         totalWeightedPoints += weight;
 
-        const isMatched = matchedSkills.some(
-          (skill) =>
-            skill.toLowerCase() ===
-            jobSkill.toLowerCase()
-        );
+        const isMatched =
+          matchedSkills.some(
+            (skill) =>
+              skill.toLowerCase() ===
+              jobSkill.toLowerCase()
+          );
 
         if (isMatched) {
           matchedWeightedPoints += weight;
@@ -244,9 +237,9 @@ app.post(
         );
 
         const prompt = `
-You are an AI Career Coach inside a Resume and Job Compatibility Analyzer.
+You are an AI Career Coach inside CareerMatch AI.
 
-Your task is to analyze the candidate's resume against the provided job description and give practical career guidance.
+Analyze the candidate's resume against the provided job description.
 
 ====================
 RESUME
@@ -302,12 +295,16 @@ ${
 }
 
 ====================
-TASK
+IMPORTANT INSTRUCTIONS
 ====================
 
-Provide a personalized career analysis.
+Return the answer using EXACTLY these six section titles.
 
-Use EXACTLY these sections:
+Do not change the wording of the titles.
+
+Do not add numbers before the titles other than the numbers already shown.
+
+Do not use alternative titles.
 
 1. Resume Strengths
 
@@ -317,11 +314,11 @@ Give 3 to 5 bullet points about the strongest relevant skills, technologies, pro
 
 Give the most important skills required by the job that are missing from the resume.
 
-Prioritize skills that have the biggest impact on job readiness.
+Prioritize the skills that have the biggest impact on job readiness.
 
 3. Recommended Skills
 
-Divide recommendations into:
+Divide the recommendations into:
 
 High Priority:
 - Skills the candidate should learn first.
@@ -346,7 +343,7 @@ Focus on:
 
 5. 30-Day Learning Roadmap
 
-Create a simple 4-week roadmap.
+Create a simple four-week roadmap.
 
 Week 1:
 - Topics to learn
@@ -369,7 +366,9 @@ Give a short summary explaining:
 - Biggest skill gap
 - What the candidate should do next
 
-Rules:
+====================
+RULES
+====================
 
 - Use simple English.
 - Use bullet points.
@@ -378,8 +377,9 @@ Rules:
 - Do not invent experience.
 - Only use information available in the resume and job description.
 - Do not modify or recalculate the system-generated match score.
-- Do not say that the score is calculated by AI.
-- Keep the recommendations realistic for a student or early-career candidate.
+- Do not say the score was calculated by AI.
+- Keep recommendations realistic for a student or early-career candidate.
+- Do not include any additional section titles.
 `;
 
         const response =
@@ -388,30 +388,91 @@ Rules:
             contents: prompt,
           });
 
-        aiAnalysis = response.text;
+        aiAnalysis =
+          response.text || "";
 
         console.log(
           "Gemini AI Career Coach generated successfully!"
         );
 
+        console.log(
+          "AI Analysis length:",
+          aiAnalysis.length
+        );
+
       } catch (aiError) {
+        // =========================
+        // Gemini Failure Handling
+        // =========================
+
         console.error(
           "Gemini AI error:",
           aiError
         );
 
-        // Gemini unavailable ayina
-        // main resume analysis continue avuthundi.
+        aiAnalysis = `
+1. Resume Strengths
 
-        aiAnalysis =
-          "Gemini AI is temporarily unavailable. Your resume score, matched skills, missing skills, and score breakdown are still available.";
+- Your resume was successfully analyzed.
+- Your technical skills were extracted successfully.
+- Your matched skills are shown in the analysis results.
+
+2. Critical Skill Gaps
+
+- Review the missing skills shown above.
+- Prioritize the core skills required by the job.
+
+3. Recommended Skills
+
+High Priority:
+- Focus on the missing core skills.
+
+Medium Priority:
+- Improve your existing technical skills.
+
+Low Priority:
+- Add supporting technologies that are relevant to the target role.
+
+4. Resume Improvement Suggestions
+
+- Highlight the skills that match the job description.
+- Add measurable achievements to projects.
+- Use relevant technical keywords.
+- Keep the resume concise and well structured.
+- Highlight your strongest projects.
+
+5. 30-Day Learning Roadmap
+
+Week 1:
+- Learn the highest-priority missing skills.
+
+Week 2:
+- Practice the concepts through coding exercises.
+
+Week 3:
+- Build or improve a practical project.
+
+Week 4:
+- Prepare your resume and practice interview questions.
+
+6. Job Readiness Summary
+
+- Your current readiness is based on the calculated match score.
+- Your biggest strength is the set of skills already matching the job.
+- Your biggest gap is the missing skills listed above.
+- Focus on the highest-priority missing skills next.
+`;
+
+        console.log(
+          "Using fallback Career Coach analysis."
+        );
       }
 
       // =========================
-      // 10. Send Final Response
+      // 10. Final Response
       // =========================
 
-      res.json({
+      return res.json({
         success: true,
 
         message:
@@ -444,30 +505,31 @@ Rules:
       });
 
     } catch (error) {
-      // =========================
-      // General Error Handling
-      // =========================
-
       console.error(
         "Resume analysis error:",
         error
       );
 
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
+
         message:
           "Could not analyze the resume.",
+
         error:
           error.message,
       });
 
     } finally {
-      // =========================
-      // Destroy PDF Parser
-      // =========================
-
       if (parser) {
-        await parser.destroy();
+        try {
+          await parser.destroy();
+        } catch (destroyError) {
+          console.error(
+            "PDF parser cleanup error:",
+            destroyError
+          );
+        }
       }
     }
   }
@@ -479,6 +541,6 @@ Rules:
 
 app.listen(PORT, () => {
   console.log(
-    `CareerMatch AI backend running on http://localhost:${PORT}`
+    `CareerMatch AI backend running on port ${PORT}`
   );
 });

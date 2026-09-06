@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -31,7 +32,7 @@ function Analyzer() {
       formData.append("jobDescription", jobDescription);
 
       const response = await fetch(
-        "http://localhost:5000/api/upload-resume",
+        "https://careermatch-ai-backend-t786.onrender.com/api/upload-resume",
         {
           method: "POST",
           body: formData,
@@ -41,16 +42,12 @@ function Analyzer() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.message || "Analysis failed."
-        );
+        throw new Error(data.message || "Analysis failed.");
       }
 
-      // Send analysis result to Results page
       navigate("/results", {
         state: data,
       });
-
     } catch (error) {
       console.error("Analysis error:", error);
 
@@ -66,20 +63,13 @@ function Analyzer() {
   return (
     <div className="min-h-screen bg-slate-950 text-white">
 
-      {/* =========================
-          Navbar
-      ========================= */}
-
       <nav className="border-b border-slate-800 bg-slate-950/90">
-
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
 
           <div>
             <h1 className="text-2xl font-bold">
               CareerMatch{" "}
-              <span className="text-blue-500">
-                AI
-              </span>
+              <span className="text-blue-500">AI</span>
             </h1>
 
             <p className="text-xs text-slate-500">
@@ -95,19 +85,11 @@ function Analyzer() {
           </button>
 
         </div>
-
       </nav>
-
-      {/* =========================
-          Main Content
-      ========================= */}
 
       <main className="mx-auto max-w-7xl px-6 py-12">
 
-        {/* Header */}
-
         <div className="mb-10">
-
           <p className="text-sm font-medium uppercase tracking-wider text-blue-400">
             AI Career Analysis
           </p>
@@ -121,12 +103,7 @@ function Analyzer() {
             description to discover your compatibility,
             skill gaps, and personalized career roadmap.
           </p>
-
         </div>
-
-        {/* =========================
-            Input Cards
-        ========================= */}
 
         <div className="grid gap-6 lg:grid-cols-2">
 
@@ -141,10 +118,6 @@ function Analyzer() {
 
         </div>
 
-        {/* =========================
-            Analyze Button
-        ========================= */}
-
         <div className="mt-10 flex justify-center">
 
           <button
@@ -158,10 +131,6 @@ function Analyzer() {
           </button>
 
         </div>
-
-        {/* =========================
-            Loading
-        ========================= */}
 
         {loading && (
           <div className="mx-auto mt-8 max-w-2xl rounded-xl border border-blue-500/20 bg-blue-500/5 p-6 text-center">
@@ -180,10 +149,6 @@ function Analyzer() {
         )}
 
       </main>
-
-      {/* =========================
-          Footer
-      ========================= */}
 
       <footer className="mt-20 border-t border-slate-800">
 
@@ -207,3 +172,4 @@ function Analyzer() {
 }
 
 export default Analyzer;
+
